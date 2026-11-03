@@ -18,7 +18,13 @@
 </section>
 <section id="cronograma"><h2>Cronograma</h2><p>Fechas por confirmar.</p><dl><dt>Semana 0</dt><dd>Registro y asignación de artículos.</dd><dt>Semana 1</dt><dd>Lectura, borrador del mapa y consulta de 15 minutos con el profesor.</dd><dt>Semana 2</dt><dd>Derivaciones, código y reproducción de una figura.</dd><dt>Semana 3</dt><dd>Gráficas, animaciones, diagrama de flujo y selección de prompts.</dd><dt>Semana 4</dt><dd>Ensayo cronometrado y entrega de materiales.</dd><dt>Exposiciones</dt><dd>Grupos 1, 2 y 3, en ese orden.</dd></dl></section>
 <section id="rubrica"><h2>Rúbrica de evaluación</h2><dl><dt>25 %</dt><dd>Comprensión física y rigor</dd><dt>20 %</dt><dd>Verificación cuantitativa</dd><dt>10 %</dt><dd>Mapas conceptuales y diagramas de flujo</dd><dt>15 %</dt><dd>Gráficas y animaciones 2D y 3D</dd><dt>10 %</dt><dd>Lectura crítica y datos actuales</dd><dt>10 %</dt><dd>Prompts y uso crítico de IA</dd><dt>10 %</dt><dd>Claridad, tiempo y preguntas</dd></dl><p>Los primeros seis criterios se califican por grupo. El último se califica individualmente.</p></section>
-<section id="registro"><h2>Registro de integrantes</h2><p>Cada grupo registrará los apellidos, nombres y códigos PUCP de sus dos integrantes. El integrante 1 será el contacto para las entregas.</p><button type="button" id="google-login" disabled>Iniciar sesión con Google</button><button type="button" id="google-logout" hidden>Cerrar sesión</button><p id="google-status" role="status">Cargando acceso con Google…</p><p><strong>Las inscripciones se cerrarán el <time id="registration-deadline" datetime="2026-11-07T12:00:00-05:00">7 de noviembre de 2026 al mediodía</time> (hora de Lima).</strong></p><p id="registration-state">Inscripciones cerradas mientras se configura la asignación de cupos.</p>
+<section id="registro"><h2>Registro de integrantes</h2><p>Cada integrante registra sus apellidos y nombres con su cuenta PUCP y selecciona un artículo. Coordina con tu compañero para elegir el mismo artículo.</p><button type="button" id="google-login" disabled>Iniciar sesión con Google</button><button type="button" id="google-logout" hidden>Cerrar sesión</button><p id="google-status" role="status">Cargando acceso con Google…</p><p><strong>Las inscripciones se cerrarán el <time id="registration-deadline" datetime="2026-11-07T12:00:00-05:00">7 de noviembre de 2026 al mediodía</time> (hora de Lima).</strong></p><p id="registration-state" role="status">Consultando cupos…</p>
+<ul id="registration-seats" aria-label="Cupos disponibles"></ul>
+<form id="registration-form" hidden>
+  <p><label>Apellidos y nombres <input name="student" required minlength="2" maxlength="120" autocomplete="name"></label></p>
+  <p><label>Artículo <select name="article" required><option value="">Elige un artículo</option><option value="1">1 · Husdal</option><option value="2">2 · Seager, Sasselov y Scott</option><option value="3">3 · Liddle y Leach</option></select></label></p>
+  <button type="submit">Confirmar inscripción</button>
+</form>
 <script type="module">
 const login = document.querySelector("#google-login");
 const logout = document.querySelector("#google-logout");
@@ -34,12 +40,3 @@ if (remaining <= 0) closeRegistration();
 else setTimeout(closeRegistration, remaining);
 try {
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
-  const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, inMemoryPersistence } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
-  const app = initializeApp({
-    apiKey: "AIzaSyBZ1ibSOE_qOmw22gdIm7lDacz6BRRqNvE",
-    authDomain: "aula-cosmologia.firebaseapp.com",
-    projectId: "aula-cosmologia",
-    appId: "1:1015947207833:web:589c62aab2976285270408"
-  });
-  const auth = getAuth(app);
-  await setPersistence(auth, inMemoryPersistence);
