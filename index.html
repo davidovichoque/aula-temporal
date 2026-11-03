@@ -29,14 +29,123 @@
 const login = document.querySelector("#google-login");
 const logout = document.querySelector("#google-logout");
 const status = document.querySelector("#google-status");
+const state = document.querySelector("#registration-state");
+const form = document.querySelector("#registration-form");
+const submit = form.querySelector("button");
+const seats = document.querySelector("#registration-seats");
 const deadline = Date.parse(document.querySelector("#registration-deadline").dateTime);
 const expired = () => Date.now() >= deadline;
 function closeRegistration() {
   login.disabled = true;
-  document.querySelector("#registration-state").textContent = "El plazo de inscripción ha concluido.";
+  form.hidden = true;
+  state.textContent = "El plazo de inscripción ha concluido.";
 }
-const remaining = deadline - Date.now();
-if (remaining <= 0) closeRegistration();
-else setTimeout(closeRegistration, remaining);
+if (expired()) closeRegistration();
+else setTimeout(closeRegistration, deadline - Date.now());
 try {
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+  const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, inMemoryPersistence } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+  const { getFirestore, doc, getDocFromServer, onSnapshot, runTransaction } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+  const app = initializeApp({
+    apiKey: "AIzaSyBZ1ibSOE_qOmw22gdIm7lDacz6BRRqNvE",
+    authDomain: "aula-cosmologia.firebaseapp.com",
+    projectId: "aula-cosmologia",
+    appId: "1:1015947207833:web:589c62aab2976285270408"
+  });
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  await setPersistence(auth, inMemoryPersistence);
+  const google = new GoogleAuthProvider();
+  google.setCustomParameters({ prompt: "select_account", hd: "pucp.edu.pe" });
+  const articleIds = ["1", "2", "3"];
+  for (const id of articleIds) {
+    const item = document.createElement("li");
+    item.textContent = "Artículo " + id + " · consultando cupos";
+    seats.append(item);
+    onSnapshot(doc(db, "seats", id), { includeMetadataChanges: true }, snapshot => {
+      if (snapshot.metadata.fromCache) return;
+      const available = 2 - (snapshot.data()?.used ?? 0);
+      item.textContent = "Artículo " + id + " · " + available + " de 2 cupos disponibles";
+      form.elements.article.options[Number(id)].disabled = available === 0;
+    }, () => { item.textContent = "Artículo " + id + " · cupos no disponibles para consulta"; });
+  }
+  let registrationRef = null;
+  function showRegistration(article) {
+    form.hidden = true;
+    status.textContent = "Inscripción confirmada en el artículo " + article + ".";
+  }
+  onAuthStateChanged(auth, async user => {
+    registrationRef = null;
+    form.hidden = true;
+    login.hidden = Boolean(user);
+    logout.hidden = !user;
+    if (!user) {
+      status.textContent = "Inicia sesión con tu cuenta institucional PUCP.";
+      return;
+    }
+    status.textContent = "Verificando tu cuenta…";
+    try {
+      const ref = doc(db, "registrations", user.email);
+      const registration = await getDocFromServer(ref);
+      if (auth.currentUser !== user) return;
+      if (registration.exists()) return showRegistration(registration.data().article);
+      registrationRef = ref;
+      status.textContent = "Cuenta autorizada.";
+      form.hidden = expired();
+    } catch (error) {
+      if (auth.currentUser !== user) return;
+      status.textContent = error.code === "permission-denied"
+        ? "Esta cuenta no está autorizada para inscribirse."
+        : "No se pudo verificar tu cuenta. Cierra sesión e inténtalo de nuevo.";
+    }
+  });
+  login.disabled = expired();
+  if (!expired()) state.textContent = "Cada alumno puede elegir un artículo con cupo disponible.";
+  login.addEventListener("click", async () => {
+    if (expired()) return closeRegistration();
+    login.disabled = true;
+    try { await signInWithPopup(auth, google); }
+    catch { status.textContent = "No se pudo iniciar sesión. Vuelve a intentarlo."; }
+    finally { login.disabled = expired(); }
+  });
+  logout.addEventListener("click", async () => {
+    await signOut(auth);
+    form.reset();
+  });
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (expired()) return closeRegistration();
+    const ref = registrationRef;
+    if (!ref) return;
+    const name = form.elements.student.value.trim();
+    const article = form.elements.article.value;
+    if (name.length < 2 || !articleIds.includes(article)) {
+      status.textContent = "Escribe tus apellidos y nombres y elige un artículo.";
+      return;
+    }
+    submit.disabled = true;
+    const seat = doc(db, "seats", article);
+    try {
+      const confirmed = await runTransaction(db, async transaction => {
+        const existing = await transaction.get(ref);
+        if (existing.exists()) return existing.data().article;
+        const snapshot = await transaction.get(seat);
+        const used = snapshot.data()?.used ?? 0;
+        if (used >= 2) throw new Error("article-full");
+        transaction.set(ref, { name, article });
+        transaction.set(seat, { used: used + 1 });
+        return article;
+      });
+      if (registrationRef === ref) showRegistration(confirmed);
+    } catch (error) {
+      if (registrationRef === ref) status.textContent = error.message === "article-full"
+        ? "Ese artículo ya está lleno. Elige otro."
+        : "No se pudo guardar la inscripción. Comprueba el plazo y vuelve a intentarlo.";
+    } finally { submit.disabled = false; }
+  });
+} catch {
+  status.textContent = "El registro no está disponible en este momento.";
+}
+</script></section>
+</main><footer>Curso de Cosmología · Laboratorio de Física · Pontificia Universidad Católica del Perú</footer>
+</html>
